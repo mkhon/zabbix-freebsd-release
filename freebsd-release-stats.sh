@@ -36,7 +36,7 @@ check_update()
 
 	# fetch public key if not exists locally
 	if [ ! -f "$PUB_SSL" ]; then
-		fetch -o "$PUB_SSL" "$base_url/pub.ssl" || return # try next update server
+		fetch -q -o "$PUB_SSL" "$base_url/pub.ssl" || return # try next update server
 	fi
 
 	# check public key signature
