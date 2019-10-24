@@ -1,7 +1,6 @@
 #!/bin/sh
 FREEBSD_UPDATE_CONF="/etc/freebsd-update.conf"
 PUB_SSL="/var/db/zabbix/freebsd-update-pub.ssl"
-ZABBIX_AGENTD_CONF="`dirname $0`/../zabbix_agentd.conf"
 
 set -o pipefail
 
@@ -50,47 +49,22 @@ check_update()
 	patchlevel="$4"
 	eol="$6"
 
-	relp=`uname -r | sed -e 's,.*-,,' -e 's/^p//'`
-	available_update=
-	if [ $patchlevel -gt $relp ]; then
-		available_update="$rel-p$patchlevel"
-	fi
-	echo "$HOSTNAME freebsd.release.update $TIMESTAMP \"$available_update\""
-	echo "$HOSTNAME freebsd.release.eol $TIMESTAMP $eol"
+	cat << EOF
+{
+    "running": "`freebsd-version`",
+    "latest": "$rel-p$patchlevel",
+    "eol": $eol
+}
+EOF
 	exit 0
 }
 
-zabbix_send()
-{
-	data="$1"
-
-	result=$(echo "$data" | zabbix_sender -c $ZABBIX_AGENTD_CONF -v -T -i - 2>&1)
-	response=$(echo "$result" | awk -F ';' '$1 ~ /^info/ && match($1,/[0-9].*$/) {sum+=substr($1,RSTART,RLENGTH)} END {print sum}')
-	if [ -n "$response" ]; then
-		echo "$response"
-	else
-		echo "$result"
-	fi
-}
-
-HOSTNAME="`hostname`"
-TIMESTAMP=`date "+%s"`
 KEYPRINT=`get_conf KeyPrint`
 servername=`get_conf ServerName`
-rel=`uname -r | sed -E -e 's,-p[0-9]+,,' -e 's,-SECURITY,-RELEASE,'`
+rel=`freebsd-version | sed -E -e 's,-p[0-9]+,,' -e 's,-SECURITY,-RELEASE,'`
 arch=`uname -m`
 
 for s in `get_servers $servername`; do
 	base_url="http://$s/${rel}/${arch}"
-	data=`check_update $base_url`
-	if [ -z "$data" ]; then
-		continue # next server
-	fi
-
-	if [ -n "$DEBUG" ]; then
-		echo "$data"
-	else
-		zabbix_send "$data"
-	fi
-	break
+	check_update $base_url
 done
