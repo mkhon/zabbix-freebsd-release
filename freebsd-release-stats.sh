@@ -1,6 +1,6 @@
 #!/bin/sh
 FREEBSD_UPDATE_CONF="/etc/freebsd-update.conf"
-PUB_SSL="/var/db/zabbix/freebsd-update-pub.ssl"
+FREEBSD_UPDATE_PUB_SSL="${FREEBSD_UPDATE_PUB_SSL:-/var/db/zabbix/freebsd-update-pub.ssl}"
 
 set -o pipefail
 
@@ -34,16 +34,16 @@ check_update()
 	base_url="$1"
 
 	# fetch public key if not exists locally
-	if [ ! -f "$PUB_SSL" ]; then
-		fetch -q -o "$PUB_SSL" "$base_url/pub.ssl" || return # try next update server
+	if [ ! -f "$FREEBSD_UPDATE_PUB_SSL" ]; then
+		fetch -q -o "$FREEBSD_UPDATE_PUB_SSL" "$base_url/pub.ssl" || return # try next update server
 	fi
 
 	# check public key signature
-	sig=`sha256 $PUB_SSL | sed 's/.*= //'`
-	[ x"$sig" == x"$KEYPRINT" ] || die "$PUB_SSL: Invalid signature"
+	sig=`sha256 $FREEBSD_UPDATE_PUB_SSL | sed 's/.*= //'`
+	[ x"$sig" == x"$KEYPRINT" ] || die "$FREEBSD_UPDATE_PUB_SSL: Invalid signature"
 
 	# fetch latest update meta
-	meta=`fetch -q -o - "$base_url/latest.ssl" | openssl rsautl -pubin -inkey $PUB_SSL -verify | sed 's/|/ /g'` || return # try next update server
+	meta=`fetch -q -o - "$base_url/latest.ssl" | openssl rsautl -pubin -inkey $FREEBSD_UPDATE_PUB_SSL -verify | sed 's/|/ /g'` || return # try next update server
 	set -- $meta
 	rel="$3"
 	patchlevel="$4"
