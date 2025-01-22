@@ -39,7 +39,7 @@
                         <step>
                             <type>JAVASCRIPT</type>
                             <params>v = JSON.parse(value);
-return v.latest != v.running ? 1 : 0;</params>
+return v.latest.replace(/-p0$/, "") != v.running ? 1 : 0;</params>
                         </step>
                     </preprocessing>
                     <master_item>
