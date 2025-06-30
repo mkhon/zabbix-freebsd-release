@@ -43,7 +43,7 @@ check_update()
 	[ x"$sig" == x"$KEYPRINT" ] || die "$FREEBSD_UPDATE_PUB_SSL: Invalid signature"
 
 	# fetch latest update meta
-	meta=`fetch -q -o - "$base_url/latest.ssl" | openssl rsautl -pubin -inkey $FREEBSD_UPDATE_PUB_SSL -verify | sed 's/|/ /g'` || return # try next update server
+	meta=`fetch -q -o - "$base_url/latest.ssl" | $OPENSSL_VERIFY | sed 's/|/ /g'` || return # try next update server
 	set -- $meta
 	rel="$3"
 	patchlevel="$4"
@@ -63,6 +63,13 @@ KEYPRINT=`get_conf KeyPrint`
 servername=`get_conf ServerName`
 rel=`freebsd-version | sed -E -e 's,-p[0-9]+,,' -e 's,-SECURITY,-RELEASE,'`
 arch=`uname -m`
+
+openssl_major_ver=$(openssl version | awk '{ print $2 }' | sed 's/\..*//')
+if [ "$openssl_major_ver" -ge 3 ]; then
+	OPENSSL_VERIFY="openssl pkeyutl -pubin -inkey $FREEBSD_UPDATE_PUB_SSL -verifyrecover"
+else
+	OPENSSL_VERIFY="openssl rsautl -pubin -inkey $FREEBSD_UPDATE_PUB_SSL -verify"
+fi
 
 for s in `get_servers $servername`; do
 	base_url="http://$s/${rel}/${arch}"
